@@ -54,6 +54,10 @@ struct sd_ctrl_req {
 	unsigned int enable;
 } __attribute__ ((__packed__));
 
+#ifdef CONFIG_FB_MSM_CAMERA_CSC
+u8 pre_csc_update = 0xFF;
+#endif
+
 static atomic_t ov_active_panels = ATOMIC_INIT(0);
 static int mdss_mdp_overlay_free_fb_pipe(struct msm_fb_data_type *mfd);
 static int mdss_mdp_overlay_fb_parse_dt(struct msm_fb_data_type *mfd);
@@ -1037,6 +1041,12 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 		 * reprogram DMA pipe before kickoff to clear out any previous
 		 * block mode configuration.
 		 */
+#ifdef CONFIG_FB_MSM_CAMERA_CSC
+		if (pre_csc_update != csc_update) {
+			if (pipe->type == MDSS_MDP_PIPE_TYPE_VIG)
+				pipe->params_changed = 1;
+		}
+#endif
 		if ((pipe->type == MDSS_MDP_PIPE_TYPE_DMA) &&
 		    (ctl->shared_lock && !ctl->mdata->has_wfd_blk)) {
 			if (ctl->mdata->mixer_switched) {
@@ -1084,6 +1094,10 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 			mdss_mdp_mixer_pipe_unstage(pipe);
 		}
 	}
+
+#ifdef CONFIG_FB_MSM_CAMERA_CSC
+	pre_csc_update = csc_update;
+#endif
 
 	if (mfd->panel.type == WRITEBACK_PANEL)
 		ret = mdss_mdp_wb_kickoff(mfd);
