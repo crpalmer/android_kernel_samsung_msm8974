@@ -41,3 +41,15 @@ config FB_MSM_CAMERA_CSC
 	bool "Support SAMSUNG CAMERA CSC"
 	---help---
 		Support for camera CSC tuning
+
+config FB_MSM_EDP_SAMSUNG
+	bool "Support SAMSUNG EDP TCON"
+	default n
+
+config EDP_ESD_FUNCTION
+	bool "Support EDP esd function"
+	default n
+
+config EDP_TCON_MDNIE
+	bool "Support EDP mdnie function"
+	default n
