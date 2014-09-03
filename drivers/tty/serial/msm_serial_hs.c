@@ -284,6 +284,21 @@ static struct msm_hs_port *msm_hs_get_hs_port(int port_index);
 	container_of((uart_port), struct msm_hs_port, uport)
 
 
+struct uart_port * msm_hs_get_port_by_id(int num)
+{
+	struct uart_port *uport;
+	struct msm_hs_port *msm_uport;
+
+	if (num < 0 || num >= UARTDM_NR)
+		return NULL;
+
+	msm_uport = msm_hs_get_hs_port(num);
+
+	uport = &(msm_uport->uport);
+
+	return uport;
+}
+
 static int msm_hs_ioctl(struct uart_port *uport, unsigned int cmd,
 						unsigned long arg)
 {
@@ -976,6 +991,11 @@ static void msm_hs_set_termios(struct uart_port *uport,
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 	struct msm_hs_rx *rx = &msm_uport->rx;
 	struct sps_pipe *sps_pipe_handle = rx->prod.pipe_handle;
+
+#ifdef CONFIG_TABPRO
+	if (msm_uport->clk_state == MSM_HS_CLK_OFF)
+		msm_hs_request_clock_on(uport);
+#endif
 
 	/**
 	 * set_termios can be invoked from the framework when
@@ -1741,6 +1761,22 @@ static void msm_hs_enable_ms_locked(struct uart_port *uport)
 
 }
 
+#ifdef CONFIG_BT_BCM4339
+static void msm_hs_power(struct uart_port *port, unsigned int state,
+			  unsigned int oldstate)
+{
+	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(port);
+
+	switch (state) {
+	case 1:
+		msm_hs_request_clock_on(&msm_uport->uport);
+		break;
+	default:
+		pr_err("Unknown PM state %d\n", state);
+	}
+}
+#endif
+
 /*
  *  Standard API, Break Signal
  *
@@ -1905,6 +1941,14 @@ static enum hrtimer_restart msm_hs_clk_off_retry(struct hrtimer *timer)
 	queue_work(msm_uport->hsuart_wq, &msm_uport->clock_off_w);
 	return HRTIMER_NORESTART;
 }
+
+int msm_hs_get_clock_state(struct uart_port *uport)
+{
+	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
+
+	return (int)msm_uport->clk_state;
+}
+EXPORT_SYMBOL(msm_hs_get_clock_state);
 
 static irqreturn_t msm_hs_isr(int irq, void *dev)
 {
@@ -3198,6 +3242,7 @@ static void __exit msm_serial_hs_exit(void)
 	uart_unregister_driver(&msm_hs_driver);
 }
 
+#ifndef CONFIG_BT_BCM4339 /* Blueesleep manages uart clk control */
 static int msm_hs_runtime_idle(struct device *dev)
 {
 	/*
@@ -3239,14 +3284,16 @@ static const struct dev_pm_ops msm_hs_dev_pm_ops = {
 	.runtime_resume  = msm_hs_runtime_resume,
 	.runtime_idle    = msm_hs_runtime_idle,
 };
-
+#endif
 
 static struct platform_driver msm_serial_hs_platform_driver = {
 	.probe	= msm_hs_probe,
 	.remove = __devexit_p(msm_hs_remove),
 	.driver = {
 		.name = "msm_serial_hs",
+#ifndef CONFIG_BT_BCM4339 /* Blueesleep manages uart clk control */
 		.pm   = &msm_hs_dev_pm_ops,
+#endif
 		.of_match_table = msm_hs_match_table,
 	},
 };
@@ -3275,6 +3322,9 @@ static struct uart_ops msm_hs_ops = {
 	.config_port = msm_hs_config_port,
 	.flush_buffer = NULL,
 	.ioctl = msm_hs_ioctl,
+#ifdef CONFIG_BT_BCM4339
+	.pm = msm_hs_power,
+#endif
 };
 
 module_init(msm_serial_hs_init);
