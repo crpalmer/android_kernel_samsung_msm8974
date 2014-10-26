@@ -38,6 +38,9 @@
 #define SYNAPTICS_PM_GPIO_STATE_WAKE	0
 #define SYNAPTICS_PM_GPIO_STATE_SLEEP	1
 
+#define FUZZ_X	30
+#define FUZZ_Y	50
+
 struct qpnp_pin_cfg synaptics_int_set[] = {
 	{
 		.mode = 0,
@@ -4097,10 +4100,10 @@ static void synaptics_rmi4_set_input_data(struct synaptics_rmi4_data *rmi4_data)
 
 	input_set_abs_params(rmi4_data->input_dev,
 			ABS_MT_POSITION_X, 0,
-			rmi4_data->sensor_max_x, 0, 0);
+			rmi4_data->sensor_max_x, FUZZ_X, 0);
 	input_set_abs_params(rmi4_data->input_dev,
 			ABS_MT_POSITION_Y, 0,
-			rmi4_data->sensor_max_y, 0, 0);
+			rmi4_data->sensor_max_y, FUZZ_Y, 0);
 #ifdef PROXIMITY
 	input_set_abs_params(rmi4_data->input_dev,
 			ABS_MT_DISTANCE, 0,
